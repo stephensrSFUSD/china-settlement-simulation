@@ -100,7 +100,12 @@ canvas{width:auto;max-width:100%;max-height:max(420px,calc(100vh - 215px));margi
 .opts button small{display:block;font-weight:400;opacity:.9;font-size:.8rem}
 .locked{font-weight:600;color:var(--jade);margin:8px 0 0}
 #mResult{background:#e3efec;border-radius:5px;padding:10px 12px;margin:14px 0 4px;font-size:1rem}
-#mGo{margin-top:12px}
+#mGo,#mPeek{margin-top:12px}
+.stage{position:relative}
+#notice{position:absolute;top:12px;left:50%;transform:translateX(-50%);background:#f0b429;color:#1c2b33;border:3px solid #1c2b33;font-size:1.1rem;padding:10px 18px;border-radius:30px;box-shadow:0 4px 14px #0006;max-width:92%;animation:pulse 1.2s ease-in-out infinite}
+#notice:hover{background:#ffcf4d}
+@keyframes pulse{50%{box-shadow:0 0 0 10px #f0b42955,0 4px 14px #0006}}
+@media(prefers-reduced-motion:reduce){#notice{animation:none}}
 .sides.one{grid-template-columns:1fr}
 .good{display:inline-block;background:#eef3f4;border-radius:10px;padding:1px 8px;margin:1px 0;white-space:nowrap}
 .sgs{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
@@ -137,7 +142,7 @@ canvas{width:auto;max-width:100%;max-height:max(420px,calc(100vh - 215px));margi
       <label class="setupOnly" title="Everyone who uses the same number gets the same luck">Luck number <input type="number" id="seed" min="1" max="999999"></label>
       <span id="scout" aria-live="polite"></span>
     </div>
-    <canvas id="map" aria-label="Physical map of China with a grid. Click a square to place a town."></canvas>
+    <div class="stage"><canvas id="map" aria-label="Physical map of China with a grid. Click a square to place a town."></canvas><button id="notice" hidden aria-live="polite"></button></div>
     <div id="timeline" hidden>
       <button id="play" class="small">Pause</button>
       <input type="range" id="slider" min="0" max="40" value="0" aria-label="Year">
@@ -148,7 +153,7 @@ canvas{width:auto;max-width:100%;max-height:max(420px,calc(100vh - 215px));margi
   <aside id="panel"></aside>
 </main>
 <section id="cards" hidden></section>
-<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="mTitle"><div class="mbox"><h2 id="mTitle"></h2><p id="mSub"></p><div class="sides" id="mSides"></div><div id="mResult" hidden aria-live="polite"></div><button id="mGo" hidden>Continue</button></div></div>
+<div id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="mTitle"><div class="mbox"><h2 id="mTitle"></h2><p id="mSub"></p><div class="sides" id="mSides"></div><div id="mResult" hidden aria-live="polite"></div><button id="mGo" hidden>Continue</button> <button id="mPeek" class="ghost">👁️ Look at the map first</button></div></div>
 <section class="about">
   <details><summary>How the simulation decides (for teachers)</summary>
   <div>
@@ -156,7 +161,7 @@ canvas{width:auto;max-width:100%;max-height:max(420px,calc(100vh - 215px));margi
   <p>Each turn is 50 years (40 turns in all). A town's population grows toward what its land can feed. Crowded towns spread into nearby squares. Flat, fertile squares are cheap to settle; mountains, desert, cold forest, and tropical forest cost much more. Navigable rivers make spreading easier. Distance from the first town makes it harder.</p>
   <p>Disasters depend on place: floods on the lower Yellow, Huai and Yangtze rivers; drought in the dry north; typhoons on the southeast coast; earthquakes along fault zones; disease in the hot wet south; raids near the northern grasslands; hard winters in the far north.</p>
   <p>When two towns' lands touch, each side chooses to trade, fight, or guard the border. Both must choose trade for trade to begin, and each partner gains more when the other has goods it lacks. If either side fights, there is war, and the stronger side slowly takes land (rough land and guarded borders are harder to take). In the "review" setting, the choice comes back every 500 years, wars can end if both offer peace every 300 years, and long-time trading partners may unite. "Let the dice choose" plays a side automatically.</p>
-  <p>Army strength depends mostly on population, then on technology (which grows with time and trade). Herding peoples get a cavalry bonus. A town with both copper and tin (on its land or through trade) gets a small bronze bonus. From 600 BCE, a town with iron ore on its land or a trading partner with iron gets a larger bonus (about 30% in war, 8% in food), which replaces the bronze bonus.</p>
+  <p>Army strength depends mostly on population, then on technology (which grows with time and trade). Herding peoples get a cavalry bonus. Everyone starts with stone and wood weapons. From 1700 BCE, a town with both copper and tin (on its land or through trade) gets a small bronze bonus. From 1000 BCE bronze is common, and any town with one of the metals or any trading partner has it. From 600 BCE, a town with iron ore on its land or a trading partner with iron gets a larger bonus (about 30% in war, 8% in food), which replaces the bronze bonus.</p>
   <p>Each town also gets a hidden luck roll. The same luck number always gives the same dice, so students can move one town and compare fairly. The "In real history" notes compare each town's region and result with what happened there between about 2000 BCE and 1 CE.</p>
   </div></details>
 </section>
@@ -361,16 +366,16 @@ function createSim(G,towns,seed,mode){
     r.st='neutral';r.n=0;both('Agreed with %o to keep to their own lands.');return head+'No trade and no war. Each keeps to its own side of the border.'}
   function step(){turn++;year=YEAR0+50*turn;pending=[];
     if(year===IRON)news.push({type:'era'});
-    const acc=P.map(()=>({cap:0,c:0,fl:0,dr:0,ty:0,qk:0,co:0,di:0,ra:0,tr:0,fe:0,cu:0,sn:0,tfe:0,tcu:0,tsn:0}));
+    const acc=P.map(()=>({cap:0,c:0,fl:0,dr:0,ty:0,qk:0,co:0,di:0,ra:0,tr:0,fe:0,cu:0,sn:0,tfe:0,tcu:0,tsn:0,tp:0}));
     for(let k=0;k<n;k++){const o=owner[k];if(o<0)continue;const p=P[o],a=acc[o];dev[k]=Math.min(1,dev[k]+.22/G.clear[k]*(1+.3*p.tech));
       const farmK=p.herd?.5:1;a.cap+=KCAP*(G.forage[k]+dev[k]*(G.capDev[k]*farmK+(p.herd?.08*G.past[k]:0)))*(1+p.tech);
       if(G.res[k]>=0){const nm=RES[G.res[k]][0];if(nm==='iron')a.fe=1;else if(nm==='copper')a.cu=1;else if(nm==='tin')a.sn=1}
       a.c++;a.fl+=G.flood[k];a.dr+=G.drought[k];a.ty+=G.typh[k];a.qk+=G.quake[k];a.co+=G.cold[k];a.di+=G.dis[k];a.ra+=G.raid[k];a.tr+=G.trade[k]}
     // metals: from your own land, or from a trading partner's land
-    for(const key in rel){const r=rel[key];if(r.st!=='trade')continue;const x=acc[r.a],y=acc[r.b];x.tfe|=y.fe;x.tcu|=y.cu;x.tsn|=y.sn;y.tfe|=x.fe;y.tcu|=x.cu;y.tsn|=x.sn}
+    for(const key in rel){const r=rel[key];if(r.st!=='trade')continue;const x=acc[r.a],y=acc[r.b];x.tp=y.tp=1;x.tfe|=y.fe;x.tcu|=y.cu;x.tsn|=y.sn;y.tfe|=x.fe;y.tcu|=x.cu;y.tsn|=x.sn}
     for(const p of P){if(!p.alive)continue;const a=acc[p.id],was=p.metal;
-      if(year>=IRON&&(a.fe||a.tfe)){p.metal='iron';p.via=a.fe?'own':'trade';p.hadIron=true}else if((a.cu||a.tcu)&&(a.sn||a.tsn)){p.metal='bronze';p.via=a.cu&&a.sn?'own':'trade'}else{p.metal='';p.via=''}
-      if(p.metal!==was){if(p.metal==='iron')say(p,p.via==='own'?'Smiths began making iron tools and weapons from local ore.':'Iron arrived through trade. Smiths began making iron tools and weapons.');else if(p.metal==='bronze'&&was!=='iron')say(p,'Smiths learned to cast bronze from copper and tin.');else if(was==='iron')say(p,'The supply of iron was cut off.',1)}}
+      if(year>=IRON&&(a.fe||a.tfe)){p.metal='iron';p.via=a.fe?'own':'trade';p.hadIron=true}else if(year>=-1700&&(((a.cu||a.tcu)&&(a.sn||a.tsn))||(year>=-1000&&(a.cu||a.sn||a.tp)))){p.metal='bronze';p.via=a.cu&&a.sn?'own':'trade'}else{p.metal='';p.via=''}
+      if(p.metal!==was){if(p.metal==='iron')say(p,p.via==='own'?'Smiths began making iron tools and weapons from local ore.':'Iron arrived through trade. Smiths began making iron tools and weapons.');else if(p.metal==='bronze'&&was!=='iron')say(p,p.via==='own'?'Smiths learned to cast bronze from copper and tin.':'Bronze weapons and tools arrived through trade.');else if(was==='iron')say(p,'The supply of iron was cut off.',1)}}
     for(const p of P){if(!p.alive)continue;const a=acc[p.id],c=p.cell,hz=(v,s)=>.6*v[c]+.4*s/a.c,lm=1-.3*p.luck;p.cells=a.c;p.cap=Math.max(a.cap*(p.metal==='iron'?1.08:1),30);
       if(p.pop<p.cap)p.pop+=.9*p.pop*(1-p.pop/p.cap)*(.8+.4*rnd()+.1*p.luck);else p.pop-=(p.pop-p.cap)*.5;
       const rn=G.rIdx[c]>=0?RIVERS[G.rIdx[c]].n:'river';
@@ -565,7 +570,7 @@ function panel(){const el=$('panel');
     el.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{st.towns.splice(+b.dataset.x,1);panel();draw()});
     $('run').onclick=run;if($('clear'))$('clear').onclick=()=>{st.towns=[];panel();draw()}}
   else if(st.phase==='running'){const P=st.sim.P,rels=Object.values(st.sim.rel).filter(r=>r.st!=='pending');
-    el.innerHTML=`<h2>${fmtYear(st.sim.year)}</h2><p class="hint">History is unfolding. When two peoples meet, the game stops so each side can choose.</p>
+    el.innerHTML=`<h2>${fmtYear(st.sim.year)}</h2><p class="hint">History is unfolding. When something needs you, a 🔔 button appears on the map. Look at the map first, then click it.</p>
     <ol class="rank">${standings().map(p=>`<li>${chip(p.id)}<span>${esc(p.name)}<small>${p.alive?titleE(p):titleE(p)+' in '+fmtYear(p.fate.year)}</small></span><b>${p.alive?fmt(p.pop):'—'}</b></li>`).join('')}</ol>
     ${rels.length?`<h4>Neighbors</h4><ul class="rels">${rels.map(r=>`<li class="${r.st}">${chip(r.a)} ${REL[r.st]} ${chip(r.b)}</li>`).join('')}</ul>`:''}`}
   else{const P=st.sim.P;
@@ -576,7 +581,7 @@ function panel(){const el=$('panel');
     el.querySelectorAll('[data-go]').forEach(li=>li.onclick=()=>$('card'+li.dataset.go).scrollIntoView({behavior:'smooth',block:'start'}));
     $('again').onclick=()=>setup();$('fresh').onclick=()=>{st.seed=Math.floor(Math.random()*99999)+1;st.towns=[];setup()}}}
 
-function setup(){stop();st.phase='setup';$('timeline').hidden=true;$('cards').hidden=true;document.querySelectorAll('.setupOnly').forEach(e=>e.hidden=false);$('seed').value=st.seed;
+function setup(){stop();st.phase='setup';st.queue=[];$('notice').hidden=true;$('timeline').hidden=true;$('cards').hidden=true;document.querySelectorAll('.setupOnly').forEach(e=>e.hidden=false);$('seed').value=st.seed;
   $('lede').textContent='It is 2000 BCE. Choose where to start up to 12 towns. Then guide them through 2,000 years of history and see which ones grow, which ones struggle, and why.';panel();draw();window.scrollTo({top:0})}
 function run(){st.towns.forEach((t,i)=>{if(!t.name.trim())t.name='Town '+(i+1)});st.seed=+$('seed').value||st.seed;st.mode=$('mode').value;st.sim=createSim(st.G,st.towns,st.seed,st.mode);st.phase='running';st.turn=0;st.queue=[];st.paused=false;st.told=new Set();
   $('timeline').hidden=false;$('slider').disabled=true;$('slider').value=0;document.querySelectorAll('.setupOnly').forEach(e=>e.hidden=true);$('scout').textContent='';$('cards').hidden=true;
@@ -586,7 +591,7 @@ function tick(){clearTimeout(st.timer);if(st.phase!=='running'||st.paused)return
   const ds=st.sim.step();st.turn=st.sim.turn;$('slider').value=st.turn;$('year').textContent=fmtYear(st.sim.year);draw();panel();
   st.queue=fallen().concat(st.sim.takeNews(),ds);if(st.queue.length)nextDecision();else if(st.turn>=TURNS)finish();else tick()},speed())}
 function fallen(){const o=[];for(const p of st.sim.P)if(!p.alive&&!st.told.has(p.id)){st.told.add(p.id);o.push({type:'lost',p})}return o}
-function finish(){st.sim.finish();st.phase='results';$('slider').disabled=false;$('play').textContent='Replay history';$('lede').textContent='Each color started as one square. Replay the history with the slider, then read why below.';panel();cards();draw();podium()}
+function finish(){st.sim.finish();st.phase='results';$('slider').disabled=false;$('play').textContent='Replay history';$('lede').textContent='Each color started as one square. Replay the history with the slider, then read why below.';panel();cards();draw();st.queue=[{type:'podium'}];nextDecision()}
 function setTurn(t){st.turn=t;$('slider').value=t;$('year').textContent=fmtYear(YEAR0+50*t);draw()}
 function stop(){clearTimeout(st.timer);clearInterval(st.rep);st.rep=null;if(st.phase==='results')$('play').textContent='Replay history'}
 $('play').onclick=()=>{if(st.phase==='running'){st.paused=!st.paused;$('play').textContent=st.paused?'Resume':'Pause';tick()}
@@ -600,13 +605,19 @@ function showLost(p){const P=st.sim.P,by=p.fate.by!=null?P[p.fate.by]:null,ty=p.
   const title=ty==='abandoned'?`🏚️ ${p.name} was abandoned`:ty==='merged'?`🤝 ${p.name} joined ${by.name}`:`⚔️ ${p.name} was conquered by ${by.name}`;
   const sub=ty==='abandoned'?`${y}: The land could not feed the town. The last families moved away.`:ty==='merged'?`${y}: After years of trade the two peoples became one. Their land now shows ${by.name}'s color.`:`${y}: ${by.name} was stronger, with about ${fmt(by.pop)} people against ${fmt(p.finalPop)}.`;
   openModal(title,sub,`<div class="side" style="--c:${st.towns[p.id].color}"><h3>${chip(p.id)} ${esc(p.name)}</h3>${signsHtml(p)}<h4>${ty==='merged'?'What made life hard here':'Why did this happen?'}</h4><ul class="why bad">${(r.length?r:['Its neighbor simply grew faster.']).map(x=>`<li>${x}</li>`).join('')}</ul></div>`)}
-const METAL={iron:'⚒️ iron weapons',bronze:'🥉 bronze weapons','':'no metal weapons'};
+const METAL={iron:'⚒️ iron weapons',bronze:'🥉 bronze weapons','':'🪨 stone and wood weapons'};
 function showEra(){const P=st.sim.P.filter(p=>p.alive);openModal('⚒️ 600 BCE: The Iron Age begins','Smiths have learned to work iron. Iron is stronger and cheaper than bronze. A town with iron ore on its land, or a trading partner who has iron, now gets a stronger army and better farm tools.',
   `<ol class="podium">${P.map(p=>`<li class="${p.metal==='iron'?'':'out'}"><span class="pl">${p.metal==='iron'?'⚒️':'✕'}</span>${chip(p.id)}<span class="nm">${esc(p.name)}<small>${p.metal==='iron'?(p.via==='own'?'Has iron ore on its own land':'Gets iron from a trading partner'):'No iron. It needs land with iron ore, or a trading partner who has it.'}</small></span><b></b></li>`).join('')}</ol>`)}
 function podium(){const ord=standings(),win=ord[0].alive?ord[0]:null;
   openModal(win?`🏆 ${win.name} wins!`:'🏚️ Nobody wins this time',win?'The winner is the town with the most people after 2,000 years.':'Every town fell. Try different squares and see what changes.',
   `<ol class="podium">${ord.map((p,i)=>`<li class="${p===win?'win':p.alive?'':'out'}"><span class="pl">${p.alive?(['🥇','🥈','🥉'][i]||i+1):'✕'}</span>${chip(p.id)}<span class="nm">${esc(p.name)}<small>${titleE(p)}${p.alive?'':' in '+fmtYear(p.fate.year)}</small></span><b>${p.alive?'👥 '+fmt(p.pop):''}</b></li>`).join('')}</ol>`,'See the full results')}
-function nextDecision(){const d=st.queue.shift();if(!d){if(st.phase!=='running')return;if(st.turn>=TURNS)finish();else tick();return}
+function nextDecision(){const sim=st.sim,nb=$('notice');while(st.queue.length){const q=st.queue[0];if(q.r&&(!sim.P[q.r.a].alive||!sim.P[q.r.b].alive))st.queue.shift();else break}
+  const d=st.queue[0];if(!d){nb.hidden=true;if(st.phase!=='running')return;if(st.turn>=TURNS)finish();else tick();return}
+  const nm=i=>sim.P[i].name,t=d.type==='podium'?'🏆 See who won':d.type==='lost'?`🔔 News about ${d.p.name}`:d.type==='era'?'🔔 Big news: iron!':d.type==='contact'?`🔔 ${nm(d.r.a)} meets ${nm(d.r.b)}`:d.type==='war'?`🔔 ${nm(d.r.a)} and ${nm(d.r.b)}: war or peace?`:`🔔 ${nm(d.r.a)} and ${nm(d.r.b)}: choose again`;
+  nb.textContent=t+(st.queue.length>1?`  (+${st.queue.length-1} more)`:'');nb.hidden=false}
+$('notice').onclick=()=>{const d=st.queue.shift();if(!d)return;$('notice').hidden=true;st.current=d;openItem(d)};
+$('mPeek').onclick=()=>{$('modal').hidden=true;st.queue.unshift(st.current);nextDecision()};
+function openItem(d){$('mPeek').hidden=false;if(d.type==='podium'){$('mPeek').hidden=true;return podium()}
   if(d.type==='lost')return showLost(d.p);if(d.type==='era')return showEra();
   $('mSides').className='sides';$('mGo').textContent='Continue';
   const sim=st.sim,r=d.r,A=sim.P[r.a],B=sim.P[r.b];if(!A.alive||!B.alive)return nextDecision();
@@ -622,7 +633,7 @@ function nextDecision(){const d=st.queue.shift();if(!d){if(st.phase!=='running')
   $('mSides').innerHTML=side(A,B,0)+side(B,A,1);$('mResult').hidden=true;$('mGo').hidden=true;$('modal').hidden=false;
   $('mSides').querySelectorAll('button[data-o]').forEach(b=>b.onclick=()=>{const i=+b.dataset.s;pick[i]=b.dataset.o==='dice'?sim.autoChoice(d,i):b.dataset.o;const sd=$('side'+i);sd.querySelector('.opts').hidden=true;sd.querySelector('.locked').hidden=false;
     if(pick[0]&&pick[1]){const text=sim.resolve(d,pick[0],pick[1])||'One of the two towns is gone, so nothing happens.';$('mSides').querySelectorAll('.locked').forEach((e,j)=>{e.textContent='Chose: '+OPT[pick[j]][0]});
-      $('mResult').textContent=text;$('mResult').hidden=false;$('mGo').hidden=false;$('mGo').focus();panel()}});
+      $('mPeek').hidden=true;$('mResult').textContent=text;$('mResult').hidden=false;$('mGo').hidden=false;$('mGo').focus();panel()}});
   const first=$('mSides').querySelector('button');if(first)first.focus()}
 $('mGo').onclick=()=>{$('modal').hidden=true;draw();if(st.phase==='running')st.queue=fallen().concat(st.queue);nextDecision()};
 
